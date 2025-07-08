@@ -5,17 +5,22 @@ from PyQt5.QtWidgets import (
     QListWidget, QPushButton, QFileDialog, QHBoxLayout,
     QCheckBox, QTextEdit, QLineEdit, QSystemTrayIcon, QMenu, QAction
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
+import os
+import json
+from watcher import FolderWatcherThread  # watcher.py에서 FolderWatcherThread 가져오기
+
+CONFIG_FILE = "config.json"
 
 class AutoFileOrganizerApp(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Auto File Organizer")
         self.setGeometry(300, 300, 400, 500)
-        self.setWindowIcon(QtGui.QIcon("icon.png"))  # 아이콘 파일 있으면 설정
-
+        self.setWindowIcon(QtGui.QIcon("icon.png"))  
         self.initUI()
         self.createTrayIcon()
+        self.load_config()  # 설정 불러오기
 
     def initUI(self):
         layout = QVBoxLayout()
@@ -34,11 +39,13 @@ class AutoFileOrganizerApp(QWidget):
 
         # [폴더이름] 규칙 ON/OFF
         self.bracketRuleCheck = QCheckBox("[폴더이름] 규칙 활성화")
+        self.bracketRuleCheck.stateChanged.connect(self.save_config)
 
         # 무시 확장자 입력
         self.ignoreLabel = QLabel("❌ 무시할 확장자 (쉼표로 구분)")
         self.ignoreInput = QLineEdit()
         self.ignoreInput.setPlaceholderText(".dmg, .app, ...")
+        self.ignoreInput.textChanged.connect(self.save_config)
 
         # 로그 출력 (예시)
         self.logLabel = QLabel("📜 상태 로그")
@@ -61,12 +68,14 @@ class AutoFileOrganizerApp(QWidget):
         if folder:
             self.folderList.addItem(folder)
             self.log(f"폴더 추가: {folder}")
+            self.save_config()
 
     def removeFolder(self):
         selected_items = self.folderList.selectedItems()
         for item in selected_items:
             self.folderList.takeItem(self.folderList.row(item))
             self.log(f"폴더 삭제: {item.text()}")
+            self.save_config()
 
     def log(self, message):
         self.logBox.append(message)
@@ -87,6 +96,29 @@ class AutoFileOrganizerApp(QWidget):
 
         self.trayIcon.setContextMenu(trayMenu)
         self.trayIcon.show()
+        
+    def save_config(self):
+        data = {
+            "folders": [self.folderList.item(i).text()
+                        for i in range(self.folderList.count())],
+            "bracket_rule": self.bracketRuleCheck.isChecked(),
+            "ignore_exts": [ext.strip()
+                            for ext in self.ignoreInput.text().split(',') if ext.strip()]
+        }
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(data, f, indent=4)
+
+    def load_config(self):
+        print("Loading config...")
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r') as f:
+                data = json.load(f)
+                for folder in data.get("folders", []):
+                    self.folderList.addItem(folder)
+                self.bracketRuleCheck.setChecked(data.get("bracket_rule", True))
+                self.ignoreInput.setText(
+                    ', '.join(data.get("ignore_exts", [])))
+                self.log("✅ 설정 불러옴")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
