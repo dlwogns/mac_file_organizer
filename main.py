@@ -5,10 +5,9 @@ from PyQt5.QtWidgets import (
     QListWidget, QPushButton, QFileDialog, QHBoxLayout,
     QCheckBox, QTextEdit, QLineEdit, QSystemTrayIcon, QMenu, QAction
 )
-from PyQt5.QtCore import Qt, QTimer
 import os
 import json
-from watcher import FolderWatcherThread  # watcher.py에서 FolderWatcherThread 가져오기
+from watcher import FolderWatcherThread
 
 CONFIG_FILE = "config.json"
 
@@ -109,7 +108,6 @@ class AutoFileOrganizerApp(QWidget):
             json.dump(data, f, indent=4)
 
     def load_config(self):
-        print("Loading config...")
         if os.path.exists(CONFIG_FILE):
             with open(CONFIG_FILE, 'r') as f:
                 data = json.load(f)
@@ -119,12 +117,27 @@ class AutoFileOrganizerApp(QWidget):
                 self.ignoreInput.setText(
                     ', '.join(data.get("ignore_exts", [])))
                 self.log("✅ 설정 불러옴")
+                
+    def startWatching(self):
+        folder_list = [self.folderList.item(i).text()
+                        for i in range(self.folderList.count())]
+        if not folder_list:
+            self.log("⚠️ 감시할 폴더를 추가해주세요.")
+            return
+
+        bracket_rule = self.bracketRuleCheck.isChecked()
+        ignore_exts = [ext.strip()
+                        for ext in self.ignoreInput.text().split(',') if ext.strip()]
+
+        self.watcher_thread = FolderWatcherThread(
+            folder_list, self.log, bracket_rule, ignore_exts)
+        self.watcher_thread.start()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setQuitOnLastWindowClosed(False)  # 창 닫아도 Tray 아이콘은 살아있게
+    app.setQuitOnLastWindowClosed(False)  
 
     window = AutoFileOrganizerApp()
     window.show()
-
+    window.startWatching()  # 감시 시작
     sys.exit(app.exec_())
