@@ -7,11 +7,12 @@ from watchdog.events import FileSystemEventHandler
 
 
 class FolderEventHandler(FileSystemEventHandler):
-    def __init__(self, log_callback, bracket_rule, ignore_exts):
+    def __init__(self, log_callback, bracket_rule, ignore_exts, destination):
         super().__init__()
         self.log_callback = log_callback
         self.bracket_rule = bracket_rule
         self.ignore_exts = ignore_exts
+        self.destination = destination
 
     def on_created(self, event):
         if event.is_directory:
@@ -29,7 +30,7 @@ class FolderEventHandler(FileSystemEventHandler):
             try:
                 folder_name = filename.split(']')[0][1:]
                 rest_name = filename.split(']')[1]
-                dest_dir = os.path.expanduser(f"~/Desktop/{folder_name}")
+                dest_dir = os.path.join(self.destination, folder_name)
                 os.makedirs(dest_dir, exist_ok=True)
                 dest_path = os.path.join(dest_dir, rest_name)
                 shutil.move(file_path, dest_path)
@@ -41,18 +42,20 @@ class FolderEventHandler(FileSystemEventHandler):
 
 
 class FolderWatcherThread(threading.Thread):
-    def __init__(self, folder_list, log_callback, bracket_rule, ignore_exts):
+    def __init__(self, folder_list, log_callback, bracket_rule, ignore_exts, destination):
         super().__init__()
         self.folder_list = folder_list
         self.log_callback = log_callback
         self.bracket_rule = bracket_rule
         self.ignore_exts = ignore_exts
+        self.destination = destination
         self.stop_flag = threading.Event()
         self.observers = []
 
     def run(self):
         event_handler = FolderEventHandler(
-            self.log_callback, self.bracket_rule, self.ignore_exts)
+            self.log_callback, self.bracket_rule, self.ignore_exts, self.destination)
+
         for folder in self.folder_list:
             observer = Observer()
             observer.schedule(event_handler, folder, recursive=False)

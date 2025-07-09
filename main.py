@@ -50,6 +50,20 @@ class AutoFileOrganizerApp(QWidget):
         self.logLabel = QLabel("📜 상태 로그")
         self.logBox = QTextEdit()
         self.logBox.setReadOnly(True)
+        
+        self.destLabel = QLabel("📂 정리될 목적지 폴더")
+        self.destFolderInput = QLineEdit()
+        self.destFolderInput.setPlaceholderText("~/Desktop")  # 기본값 안내
+        self.destBrowseBtn = QPushButton("찾아보기")
+        self.destBrowseBtn.clicked.connect(self.browseDestFolder)
+        self.destFolderInput.textChanged.connect(self.save_config)
+
+        dest_layout = QHBoxLayout()
+        dest_layout.addWidget(self.destFolderInput)
+        dest_layout.addWidget(self.destBrowseBtn)
+
+        layout.addWidget(self.destLabel)
+        layout.addLayout(dest_layout)
 
         layout.addWidget(self.folderListLabel)
         layout.addWidget(self.folderList)
@@ -61,6 +75,12 @@ class AutoFileOrganizerApp(QWidget):
         layout.addWidget(self.logBox)
 
         self.setLayout(layout)
+        
+    def browseDestFolder(self):
+        folder = QFileDialog.getExistingDirectory(self, "정리될 목적지 폴더 선택")
+        if folder:
+            self.destFolderInput.setText(folder)
+            self.save_config()
 
     def addFolder(self):
         folder = QFileDialog.getExistingDirectory(self, "감시할 폴더 선택")
@@ -98,11 +118,12 @@ class AutoFileOrganizerApp(QWidget):
         
     def save_config(self):
         data = {
-            "folders": [self.folderList.item(i).text()
-                        for i in range(self.folderList.count())],
-            "bracket_rule": self.bracketRuleCheck.isChecked(),
-            "ignore_exts": [ext.strip()
-                            for ext in self.ignoreInput.text().split(',') if ext.strip()]
+        "folders": [self.folderList.item(i).text()
+                    for i in range(self.folderList.count())],
+        "bracket_rule": self.bracketRuleCheck.isChecked(),
+        "ignore_exts": [ext.strip()
+                        for ext in self.ignoreInput.text().split(',') if ext.strip()],
+        "destination": self.destFolderInput.text().strip()
         }
         with open(CONFIG_FILE, 'w') as f:
             json.dump(data, f, indent=4)
@@ -114,8 +135,8 @@ class AutoFileOrganizerApp(QWidget):
                 for folder in data.get("folders", []):
                     self.folderList.addItem(folder)
                 self.bracketRuleCheck.setChecked(data.get("bracket_rule", True))
-                self.ignoreInput.setText(
-                    ', '.join(data.get("ignore_exts", [])))
+                self.ignoreInput.setText(', '.join(data.get("ignore_exts", [])))
+                self.destFolderInput.setText(data.get("destination", os.path.expanduser("~/Desktop")))
                 self.log("✅ 설정 불러옴")
                 
     def startWatching(self):
@@ -128,9 +149,13 @@ class AutoFileOrganizerApp(QWidget):
         bracket_rule = self.bracketRuleCheck.isChecked()
         ignore_exts = [ext.strip()
                         for ext in self.ignoreInput.text().split(',') if ext.strip()]
+        
+        destination = self.destFolderInput.text().strip()
+        if not destination:
+            destination = os.path.expanduser("~/Desktop")
 
         self.watcher_thread = FolderWatcherThread(
-            folder_list, self.log, bracket_rule, ignore_exts)
+            folder_list, self.log, bracket_rule, ignore_exts, destination)
         self.watcher_thread.start()
 
 if __name__ == "__main__":
