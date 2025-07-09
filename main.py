@@ -60,7 +60,7 @@ class AutoFileOrganizerApp(QWidget):
         
         self.destLabel = QLabel("정리될 목적지 폴더")
         self.destFolderInput = QLineEdit()
-        self.destFolderInput.setPlaceholderText("~/Desktop")  # 기본값 안내
+        self.destFolderInput.setPlaceholderText("~/Desktop") 
         self.destBrowseBtn = QPushButton("찾아보기")
         self.destBrowseBtn.clicked.connect(self.browseDestFolder)
         self.destFolderInput.textChanged.connect(self.save_config)
@@ -178,13 +178,6 @@ class AutoFileOrganizerApp(QWidget):
         self.watcher_thread = FolderWatcherThread(
             folder_list, self.log, self.shared_config)
         self.watcher_thread.start()
-        
-    def restartWatching(self):
-        if self.watcher_thread:
-            self.watcher_thread.stop()
-            self.watcher_thread.join()
-            self.watcher_thread = None
-        self.startWatching()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
