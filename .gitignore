@@ -3,6 +3,15 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+#User Configuration
+#  This file is used to store user-specific configuration settings.
+#  It is recommended to keep this file in version control to allow for easy sharing of configurations
+#  across different environments.
+*.png
+*.sh
+*.icns
+.*
+
 # C extensions
 *.so
 

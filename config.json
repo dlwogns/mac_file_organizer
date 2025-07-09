@@ -1,0 +1,11 @@
+{
+    "folders": [
+        "/Users/ljh/Downloads"
+    ],
+    "bracket_rule": true,
+    "ignore_exts": [
+        ".dmg",
+        ".app"
+    ],
+    "destination": "/Users/ljh/Downloads"
+}
