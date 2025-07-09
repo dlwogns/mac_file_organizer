@@ -7,13 +7,20 @@ from PyQt5.QtWidgets import (
 )
 import os
 import json
-from watcher import FolderWatcherThread
+from watcher import FolderWatcherThread, SharedConfig
 
 CONFIG_FILE = "config.json"
 
 class AutoFileOrganizerApp(QWidget):
     def __init__(self):
         super().__init__()
+        
+        self.shared_config = SharedConfig(
+            bracket_rule=True,
+            ignore_exts=[],
+            destination=os.path.expanduser("~/Desktop")
+        )
+        
         self.setWindowTitle("Auto File Organizer")
         self.setGeometry(300, 300, 400, 500)
         self.setWindowIcon(QtGui.QIcon("icon.png"))  
@@ -25,12 +32,12 @@ class AutoFileOrganizerApp(QWidget):
         layout = QVBoxLayout()
 
         # 감시 폴더 리스트
-        self.folderListLabel = QLabel("📂 감시할 폴더")
+        self.folderListLabel = QLabel("감시할 폴더")
         self.folderList = QListWidget()
 
         btn_layout = QHBoxLayout()
-        self.addFolderBtn = QPushButton("➕ 추가")
-        self.removeFolderBtn = QPushButton("➖ 삭제")
+        self.addFolderBtn = QPushButton("추가")
+        self.removeFolderBtn = QPushButton("삭제")
         self.addFolderBtn.clicked.connect(self.addFolder)
         self.removeFolderBtn.clicked.connect(self.removeFolder)
         btn_layout.addWidget(self.addFolderBtn)
@@ -41,17 +48,17 @@ class AutoFileOrganizerApp(QWidget):
         self.bracketRuleCheck.stateChanged.connect(self.save_config)
 
         # 무시 확장자 입력
-        self.ignoreLabel = QLabel("❌ 무시할 확장자 (쉼표로 구분)")
+        self.ignoreLabel = QLabel("무시할 확장자 (쉼표로 구분)")
         self.ignoreInput = QLineEdit()
         self.ignoreInput.setPlaceholderText(".dmg, .app, ...")
         self.ignoreInput.textChanged.connect(self.save_config)
 
         # 로그 출력 (예시)
-        self.logLabel = QLabel("📜 상태 로그")
+        self.logLabel = QLabel("상태 로그")
         self.logBox = QTextEdit()
         self.logBox.setReadOnly(True)
         
-        self.destLabel = QLabel("📂 정리될 목적지 폴더")
+        self.destLabel = QLabel("정리될 목적지 폴더")
         self.destFolderInput = QLineEdit()
         self.destFolderInput.setPlaceholderText("~/Desktop")  # 기본값 안내
         self.destBrowseBtn = QPushButton("찾아보기")
@@ -127,6 +134,14 @@ class AutoFileOrganizerApp(QWidget):
         }
         with open(CONFIG_FILE, 'w') as f:
             json.dump(data, f, indent=4)
+            
+        if hasattr(self, 'shared_config') and self.shared_config:
+            self.shared_config.update(
+                bracket_rule=data["bracket_rule"],
+                ignore_exts=data["ignore_exts"],
+                destination=data["destination"]
+            )
+            self.log("설정 변경됨 → 실시간 반영됨")
 
     def load_config(self):
         if os.path.exists(CONFIG_FILE):
@@ -137,26 +152,39 @@ class AutoFileOrganizerApp(QWidget):
                 self.bracketRuleCheck.setChecked(data.get("bracket_rule", True))
                 self.ignoreInput.setText(', '.join(data.get("ignore_exts", [])))
                 self.destFolderInput.setText(data.get("destination", os.path.expanduser("~/Desktop")))
-                self.log("✅ 설정 불러옴")
+                self.log("설정 불러옴")
+
+                if hasattr(self, 'shared_config'):
+                    self.shared_config.update(
+                        bracket_rule=data.get("bracket_rule", True),
+                        ignore_exts=data.get("ignore_exts", []),
+                        destination=data.get("destination", os.path.expanduser("~/Desktop"))
+                    )
                 
     def startWatching(self):
         folder_list = [self.folderList.item(i).text()
                         for i in range(self.folderList.count())]
         if not folder_list:
-            self.log("⚠️ 감시할 폴더를 추가해주세요.")
+            self.log("감시할 폴더를 추가해주세요.")
             return
 
-        bracket_rule = self.bracketRuleCheck.isChecked()
-        ignore_exts = [ext.strip()
-                        for ext in self.ignoreInput.text().split(',') if ext.strip()]
-        
-        destination = self.destFolderInput.text().strip()
-        if not destination:
-            destination = os.path.expanduser("~/Desktop")
+        self.shared_config.update(
+            bracket_rule=self.bracketRuleCheck.isChecked(),
+            ignore_exts=[ext.strip()
+                        for ext in self.ignoreInput.text().split(',') if ext.strip()],
+            destination=self.destFolderInput.text().strip()
+        )
 
         self.watcher_thread = FolderWatcherThread(
-            folder_list, self.log, bracket_rule, ignore_exts, destination)
+            folder_list, self.log, self.shared_config)
         self.watcher_thread.start()
+        
+    def restartWatching(self):
+        if self.watcher_thread:
+            self.watcher_thread.stop()
+            self.watcher_thread.join()
+            self.watcher_thread = None
+        self.startWatching()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
