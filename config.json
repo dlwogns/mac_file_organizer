@@ -5,7 +5,11 @@
     "bracket_rule": true,
     "ignore_exts": [
         ".dmg",
-        ".app"
+        ".app",
+        ".crdownload",
+        ".part",
+        ".tmp",
+        ".download"
     ],
     "destination": "/Users/ljh/Downloads"
 }
