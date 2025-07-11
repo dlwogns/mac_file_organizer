@@ -60,8 +60,10 @@ class FolderEventHandler(FileSystemEventHandler):
                 dest_dir = os.path.join(destination, folder_name)
                 os.makedirs(dest_dir, exist_ok=True)
                 dest_path = os.path.join(dest_dir, rest_name)
-                shutil.move(file_path, dest_path)
-                self.log_callback(f"{filename} → {dest_dir}")
+                
+                if util.safe_move(file_path, dest_path):  
+                    self.log_callback(f"{filename} → {dest_dir}")
+                
             except Exception as e:
                 self.log_callback(f"이동 실패: {filename} ({e})")
         else:
