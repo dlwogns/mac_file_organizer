@@ -150,6 +150,8 @@ class AutoFileOrganizerApp(QWidget):
                 for folder in data.get("folders", []):
                     self.folderList.addItem(folder)
                 self.bracketRuleCheck.setChecked(data.get("bracket_rule", True))
+                # ignore Input contains Temporary files
+                # if new browser is used, it will be added to the ignore list (in config.json)
                 self.ignoreInput.setText(', '.join(data.get("ignore_exts", [])))
                 self.destFolderInput.setText(data.get("destination", os.path.expanduser("~/Desktop")))
                 self.log("설정 불러옴")

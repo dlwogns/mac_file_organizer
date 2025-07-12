@@ -5,6 +5,7 @@ import time
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import threading
+import util
 
 class SharedConfig:
     def __init__(self, bracket_rule, ignore_exts, destination):
@@ -47,6 +48,10 @@ class FolderEventHandler(FileSystemEventHandler):
         if ext in ignore_exts:
             self.log_callback(f"무시됨: {filename}")
             return
+        
+        if not util.is_download_complete(file_path):
+            self.log_callback(f"다운로드 중: {filename}")
+            return
 
         if bracket_rule and filename.startswith('['):
             try:
@@ -55,8 +60,10 @@ class FolderEventHandler(FileSystemEventHandler):
                 dest_dir = os.path.join(destination, folder_name)
                 os.makedirs(dest_dir, exist_ok=True)
                 dest_path = os.path.join(dest_dir, rest_name)
-                shutil.move(file_path, dest_path)
-                self.log_callback(f"{filename} → {dest_dir}")
+                
+                if util.safe_move(file_path, dest_path):  
+                    self.log_callback(f"{filename} → {dest_dir}")
+                
             except Exception as e:
                 self.log_callback(f"이동 실패: {filename} ({e})")
         else:
